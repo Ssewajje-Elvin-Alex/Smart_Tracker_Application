@@ -43,8 +43,8 @@ class _TrackerHomeState extends State<TrackerHome> {
   GoogleMapController? mapController;
 
   LatLng currentPosition = const LatLng(
-   0.3476,
-   32.5825,
+   0.332201,
+   32.570472,
   );
 
   Future<void> getLocation() async {
@@ -53,32 +53,28 @@ class _TrackerHomeState extends State<TrackerHome> {
     });
 
     try {
-      final data =
-          await ApiService.getLatestLocation();
+      final data = await ApiService.getLatestLocation();
       setState(() {
         locationData = data;
         currentPosition = LatLng(
          double.parse(data["latitude"].toString()),
          double.parse(data["longitude"].toString()),
         );
-        mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(
-            currentPosition,15,
+      });
+
+      mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          currentPosition,15,
           ),
         );
-      });
 
     } catch(e) {
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error: $e"),
         ),
-
       );
-
     }
 
     setState(() {

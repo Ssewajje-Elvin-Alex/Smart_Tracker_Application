@@ -13,4 +13,4 @@ class LatestTrackerDataView(generics.RetrieveAPIView):
     serializer_class=TrackerDataSerializer
 
     def get_object(self):
-        return TrackerData.objects.order_by('timestamp').first()
+        return TrackerData.objects.order_by('timestamp').last()
