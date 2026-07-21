@@ -1,6 +1,7 @@
 from django.db import models
 
 EVENT_TYPE_CHOICES = [
+    ("LOCATION_UPDATE", "Location Update"),
     ("EMERGENCY_BUTTON", "Emergency Button"),
     ("GEOFENCE_EXIT", "Geofence Exit"),
     ("GEOFENCE_RETURN", "Geofence Return"),
@@ -18,7 +19,7 @@ class TrackerData(models.Model):
     event_type = models.CharField(
         max_length=32,
         choices=EVENT_TYPE_CHOICES,
-        default="BACKEND_TEST",
+        default="LOCATION_UPDATE",
     )
 
     latitude = models.FloatField()
@@ -26,11 +27,7 @@ class TrackerData(models.Model):
     distance_metres = models.FloatField(null=True, blank=True)
     satellites = models.IntegerField(null=True, blank=True)
     map_url = models.URLField(max_length=255, blank=True, default="")
-
-    # Kept for the app UI; the sketch doesn't send this yet, so it just
-    # keeps whatever was last recorded (see serializer default handling).
     battery_level = models.IntegerField(default=100)
-
     timestamp = models.DateTimeField(auto_now_add=True)
 
     @property
@@ -38,21 +35,30 @@ class TrackerData(models.Model):
         return self.event_type in EMERGENCY_EVENT_TYPES
 
     def __str__(self):
-        return f"{self.device_id} [{self.event_type}] ({self.latitude}, {self.longitude})"
+        return (
+            f"{self.device_id} [{self.event_type}] "
+            f"({self.latitude}, {self.longitude})"
+        )
 
     class Meta:
         ordering = ["-timestamp"]
 
 
 class DeviceConfig(models.Model):
-    """
-    Single row per device holding guardian-editable settings. The app
-    writes to this over REST; the ESP32 polls it over GPRS and applies
-    changes locally (see the periodic config-check in the sketch).
-    """
+    """Guardian-editable settings for one Smart Guardian device."""
 
-    device_id = models.CharField(max_length=64, unique=True, default="SMART-GUARDIAN-001")
+    device_id = models.CharField(
+        max_length=64,
+        unique=True,
+        default="SMART-GUARDIAN-001",
+    )
+
+    # Destination for direct emergency/geofence SMS alerts.
     guardian_phone = models.CharField(max_length=20, blank=True, default="")
+
+    # SIM card installed in the SIM800L. The Flutter Listen Live button calls it.
+    device_phone = models.CharField(max_length=20, blank=True, default="")
+
     geofence_latitude = models.FloatField(default=0.0)
     geofence_longitude = models.FloatField(default=0.0)
     geofence_radius_m = models.FloatField(default=500.0)

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../services/api_services.dart';
 
-/// Lets the guardian set the phone number the bracelet texts/calls, and
-/// the geofence center + radius. Saved settings are written to the
-/// backend; the ESP32 polls /api/config/ and applies them on its own.
+/// Guardian-facing settings. The guardian alert number receives SMS alerts.
+/// The tracker SIM number is the number the guardian calls for live listening.
 class SettingsScreen extends StatefulWidget {
-  // Optional: pass the tracker's last known position so the guardian can
-  // one-tap "use current tracker location" as the geofence center instead
-  // of typing coordinates by hand.
   final double? currentTrackerLatitude;
   final double? currentTrackerLongitude;
 
@@ -24,7 +21,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _phoneController = TextEditingController();
+  final _guardianPhoneController = TextEditingController();
+  final _devicePhoneController = TextEditingController();
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
   final _radiusController = TextEditingController();
@@ -41,7 +39,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _guardianPhoneController.dispose();
+    _devicePhoneController.dispose();
     _latController.dispose();
     _lngController.dispose();
     _radiusController.dispose();
@@ -56,15 +55,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final config = await ApiService.getDeviceConfig();
-      _phoneController.text = config["guardian_phone"] ?? "";
+      _guardianPhoneController.text = config["guardian_phone"] ?? "";
+      _devicePhoneController.text = config["device_phone"] ?? "";
       _latController.text = config["geofence_latitude"].toString();
       _lngController.text = config["geofence_longitude"].toString();
       _radiusController.text = config["geofence_radius_m"].toString();
     } catch (e) {
-      setState(() => errorMessage = e.toString());
+      if (mounted) {
+        setState(() => errorMessage = e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
-
-    setState(() => loading = false);
   }
 
   void _useCurrentTrackerLocation() {
@@ -77,8 +81,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     setState(() {
-      _latController.text = widget.currentTrackerLatitude!.toStringAsFixed(6);
-      _lngController.text = widget.currentTrackerLongitude!.toStringAsFixed(6);
+      _latController.text =
+          widget.currentTrackerLatitude!.toStringAsFixed(6);
+      _lngController.text =
+          widget.currentTrackerLongitude!.toStringAsFixed(6);
     });
   }
 
@@ -89,7 +95,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       await ApiService.updateDeviceConfig(
-        guardianPhone: _phoneController.text.trim(),
+        guardianPhone: _guardianPhoneController.text.trim(),
+        devicePhone: _devicePhoneController.text.trim(),
         geofenceLatitude: double.parse(_latController.text.trim()),
         geofenceLongitude: double.parse(_lngController.text.trim()),
         geofenceRadiusM: double.parse(_radiusController.text.trim()),
@@ -99,7 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Settings saved.")),
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -107,9 +114,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SnackBar(content: Text("Error: $e")),
         );
       }
+    } finally {
+      if (mounted) setState(() => saving = false);
     }
-
-    if (mounted) setState(() => saving = false);
   }
 
   String? _requiredValidator(String? value) {
@@ -117,9 +124,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return null;
   }
 
+  String? _phoneValidator(String? value) {
+    final requiredError = _requiredValidator(value);
+    if (requiredError != null) return requiredError;
+
+    final normalized = value!.replaceAll(RegExp(r"[\s()-]"), "");
+    if (!RegExp(r"^\+[1-9]\d{8,14}$").hasMatch(normalized)) {
+      return "Use international format, for example +2567XXXXXXXX";
+    }
+    return null;
+  }
+
   String? _numberValidator(String? value) {
     if (value == null || value.trim().isEmpty) return "Required";
     if (double.tryParse(value.trim()) == null) return "Enter a number";
+    return null;
+  }
+
+  String? _radiusValidator(String? value) {
+    final error = _numberValidator(value);
+    if (error != null) return error;
+
+    final radius = double.parse(value!.trim());
+    if (radius < 10 || radius > 100000) {
+      return "Enter a radius from 10 to 100000 metres";
+    }
     return null;
   }
 
@@ -145,23 +174,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     const Text(
-                      "Guardian phone number",
+                      "Guardian alert number",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "The bracelet texts and can be called back on this number.",
+                      "The ESP32 sends emergency and geofence SMS alerts to this number.",
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
-                      controller: _phoneController,
+                      controller: _guardianPhoneController,
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: "+2567XXXXXXXX",
                       ),
-                      validator: _requiredValidator,
+                      validator: _phoneValidator,
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Tracker SIM number",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "The Listen Live button calls this number. It must be the SIM card inside the SIM800L, not the guardian's number.",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _devicePhoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: "+2567XXXXXXXX",
+                      ),
+                      validator: _phoneValidator,
                     ),
                     const SizedBox(height: 24),
                     const Text(
@@ -170,14 +219,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "Center point and radius the bracelet is allowed to stay within.",
+                      "Centre point and radius the tracker is allowed to remain within.",
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _latController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         labelText: "Latitude",
@@ -187,8 +238,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _lngController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         labelText: "Longitude",
@@ -204,13 +257,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _radiusController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         labelText: "Radius (metres)",
                       ),
-                      validator: _numberValidator,
+                      validator: _radiusValidator,
                     ),
                     const SizedBox(height: 28),
                     SizedBox(
