@@ -34,7 +34,7 @@ ALLOWED_HOSTS = ["*"]
 # Must match DEVICE_API_KEY in the ESP32 sketch exactly.
 # Set this as an environment variable on Render (or wherever the backend
 # is hosted) -- do not hardcode the real key here.
-DEVICE_API_KEY = os.environ.get("guardian-secret-92xk", "")
+DEVICE_API_KEY = os.environ.get("DEVICE_API_KEY", "")
 
 
 # Application definition

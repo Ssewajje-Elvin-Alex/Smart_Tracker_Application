@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'services/api_services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'screens/settings_screen.dart';
 
 // Must match PHONE_NUMBER in the ESP32 sketch — this is who the bracelet
 // itself already texts on emergency/geofence events.
@@ -143,22 +144,40 @@ class _TrackerHomeState extends State<TrackerHome> {
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: emergency ? Colors.red[100] : Colors.green[100],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      emergency ? "EMERGENCY" : "SAFE",
-                      style: TextStyle(
-                        color: emergency ? Colors.red : Colors.green,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: emergency ? Colors.red[100] : Colors.green[100],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          emergency ? "EMERGENCY" : "SAFE",
+                          style: TextStyle(
+                            color: emergency ? Colors.red : Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.settings),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SettingsScreen(
+                                currentTrackerLatitude: currentPosition.latitude,
+                                currentTrackerLongitude: currentPosition.longitude,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
