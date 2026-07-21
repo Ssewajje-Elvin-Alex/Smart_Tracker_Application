@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,7 +28,7 @@ class SmartTrackerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: "Smart Tracker",
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const TrackerHome(),
+      home: const SplashScreen(),
     );
   }
 }
@@ -234,18 +234,8 @@ class _TrackerHomeState extends State<TrackerHome> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.shield, color: Colors.blue, size: 30),
-                      SizedBox(width: 8),
-                      Text(
-                        "Smart Tracker",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    "Smart Tracker", style: TextStyle(fontSize: 22,fontWeight: FontWeight.bold,),
                   ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
