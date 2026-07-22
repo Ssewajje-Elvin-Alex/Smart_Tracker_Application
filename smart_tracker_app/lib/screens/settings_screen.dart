@@ -199,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "The Listen Live button calls this number. It must be the SIM card inside the SIM800L, not the guardian's number.",
+                      "The Call Device button calls this number. It must be the SIM card inside the tracker, not the guardian's number.",
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),

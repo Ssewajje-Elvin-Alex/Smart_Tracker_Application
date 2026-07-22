@@ -19,6 +19,9 @@ class TrackerDataSerializer(serializers.ModelSerializer):
             "satellites",
             "map_url",
             "battery_level",
+            "emergency_active",
+            "geofence_outside",
+            "location_request_id",
             "emergency",
             "timestamp",
         ]
@@ -35,9 +38,17 @@ class DeviceConfigSerializer(serializers.ModelSerializer):
             "geofence_latitude",
             "geofence_longitude",
             "geofence_radius_m",
+            "location_request_id",
+            "location_request_pending",
+            "location_request_at",
             "updated_at",
         ]
-        read_only_fields = ["updated_at"]
+        read_only_fields = [
+            "location_request_id",
+            "location_request_pending",
+            "location_request_at",
+            "updated_at",
+        ]
 
     def validate_geofence_radius_m(self, value):
         if value < 10 or value > 100000:

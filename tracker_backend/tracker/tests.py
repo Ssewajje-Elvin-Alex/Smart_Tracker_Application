@@ -2,7 +2,7 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import TrackerData
+from .models import DeviceConfig, TrackerData
 
 
 @override_settings(DEVICE_API_KEY="test-device-key")
@@ -17,6 +17,9 @@ class TrackerApiTests(APITestCase):
             "longitude": 32.570472,
             "distance_metres": 4.2,
             "satellites": 9,
+            "battery_level": 100,
+            "emergency_active": False,
+            "geofence_outside": False,
             "map_url": "https://maps.google.com/?q=0.332201,32.570472",
         }
         payload.update(overrides)
@@ -41,16 +44,17 @@ class TrackerApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_latest_endpoint_returns_newest_event(self):
+    def test_latest_endpoint_returns_newest_event_and_state(self):
         TrackerData.objects.create(
             event_type="LOCATION_UPDATE",
             latitude=0.1,
             longitude=32.1,
         )
         newest = TrackerData.objects.create(
-            event_type="GEOFENCE_EXIT",
+            event_type="LOCATION_UPDATE",
             latitude=0.2,
             longitude=32.2,
+            geofence_outside=True,
         )
 
         response = self.client.get("/api/location/latest/")
@@ -75,3 +79,26 @@ class TrackerApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["guardian_phone"], "+256700000001")
         self.assertEqual(response.data["device_phone"], "+256700000002")
+
+    def test_refresh_request_is_returned_to_device_and_cleared_by_matching_post(self):
+        request_response = self.client.post(
+            "/api/config/request-location/",
+            {},
+            format="json",
+        )
+        self.assertEqual(request_response.status_code, status.HTTP_202_ACCEPTED)
+        request_id = request_response.data["location_request_id"]
+
+        config_response = self.client.get("/api/config/")
+        self.assertTrue(config_response.data["location_request_pending"])
+        self.assertEqual(config_response.data["location_request_id"], request_id)
+
+        post_response = self.client.post(
+            "/api/location/",
+            self.location_payload(location_request_id=request_id),
+            format="json",
+        )
+        self.assertEqual(post_response.status_code, status.HTTP_201_CREATED)
+
+        config = DeviceConfig.objects.get(device_id="SMART-GUARDIAN-001")
+        self.assertFalse(config.location_request_pending)

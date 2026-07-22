@@ -9,9 +9,19 @@ class ApiService {
   static const Duration requestTimeout = Duration(seconds: 25);
 
   static Future<Map<String, dynamic>> getLatestLocation() async {
-    final response = await http
-        .get(Uri.parse("$baseUrl/location/latest/"))
-        .timeout(requestTimeout);
+    final uri = Uri.parse("$baseUrl/location/latest/").replace(
+      queryParameters: {
+        "t": DateTime.now().millisecondsSinceEpoch.toString(),
+      },
+    );
+
+    final response = await http.get(
+      uri,
+      headers: const {
+        "Accept": "application/json",
+        "Cache-Control": "no-cache",
+      },
+    ).timeout(requestTimeout);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
@@ -26,9 +36,37 @@ class ApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> requestLocationRefresh() async {
+    final response = await http
+        .post(
+          Uri.parse("$baseUrl/config/request-location/"),
+          headers: const {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        )
+        .timeout(requestTimeout);
+
+    if (response.statusCode == 200 || response.statusCode == 202) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+
+    throw Exception(
+      "Could not request a fresh location (status ${response.statusCode}): "
+      "${response.body}",
+    );
+  }
+
   static Future<Map<String, dynamic>> getDeviceConfig() async {
     final response = await http
-        .get(Uri.parse("$baseUrl/config/"))
+        .get(
+          Uri.parse("$baseUrl/config/"),
+          headers: const {
+            "Accept": "application/json",
+            "Cache-Control": "no-cache",
+          },
+        )
         .timeout(requestTimeout);
 
     if (response.statusCode == 200) {
